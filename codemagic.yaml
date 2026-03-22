@@ -1,12 +1,11 @@
 workflows:
 
   # ─────────────────────────────────────────────────────────────
-  #  FitPilot — iOS build for AltStore sideloading
+  #  FitPilot — iOS unsigned build for AltStore sideloading
   #
-  #  Signing:  no-codesign (AltStore re-signs with your Apple ID
-  #            locally on your Windows PC)
-  #  Output:   FitPilot.ipa  (download from Codemagic artifacts)
-  #  Install:  AltStore on Windows → sideload to iPhone
+  #  Strategy: flutter pub get → pod install → xcodebuild (no sign)
+  #  Output:   FitPilot.ipa  — download from Codemagic artifacts
+  #  Install:  AltStore on Windows re-signs and installs on iPhone
   # ─────────────────────────────────────────────────────────────
   ios-altstore:
     name: FitPilot iOS — AltStore
@@ -19,40 +18,53 @@ workflows:
       cocoapods: default
 
     scripts:
-      - name: Print Flutter version
+      - name: Flutter version
         script: flutter --version
 
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods
         script: |
           cd ios
-          pod repo update
           pod install
 
-      - name: Build iOS app (no code signing)
+      - name: Build iOS (xcodebuild, no signing)
         script: |
-          flutter build ios \
-            --release \
-            --no-codesign \
-            --dart-define=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+          xcodebuild build \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            -derivedDataPath "$CM_BUILD_DIR/output" \
+            2>&1 | xcpretty --color
 
       - name: Package as IPA for AltStore
         script: |
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r FitPilot.ipa Payload/
-          ls -lh FitPilot.ipa
+          APP_PATH=$(find "$CM_BUILD_DIR/output/Build/Products" \
+            -name "Runner.app" \
+            ! -path "*simulator*" \
+            | head -1)
+
+          echo "Packaging: $APP_PATH"
+          mkdir -p "$CM_BUILD_DIR/ipa/Payload"
+          cp -r "$APP_PATH" "$CM_BUILD_DIR/ipa/Payload/"
+          cd "$CM_BUILD_DIR/ipa"
+          zip -r "$CM_BUILD_DIR/FitPilot.ipa" Payload/
+          echo "Done — $(du -sh "$CM_BUILD_DIR/FitPilot.ipa")"
 
     artifacts:
-      - build/ios/iphoneos/FitPilot.ipa
+      - $CM_BUILD_DIR/FitPilot.ipa
 
     publishing:
       email:
         recipients:
-          - your-email@example.com   # ← replace with your email before building
+          - logbi855@gmail.com
         notify:
           success: true
           failure: true
