@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Old JS source — not part of Flutter project
+_app_old/
+MIGRATION_SPEC.md
+Android to iOS Migration Guide.md
