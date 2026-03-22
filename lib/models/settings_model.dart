@@ -7,6 +7,7 @@ class SettingsModel {
   final bool restDay;
   final bool weatherWorkout;
   final bool progress;
+  final String claudeApiKey;  // Anthropic API key — stored locally
 
   const SettingsModel({
     this.language = 'en',
@@ -15,6 +16,7 @@ class SettingsModel {
     this.restDay = false,
     this.weatherWorkout = true,
     this.progress = true,
+    this.claudeApiKey = '',
   });
 
   SettingsModel copyWith({
@@ -24,6 +26,7 @@ class SettingsModel {
     bool? restDay,
     bool? weatherWorkout,
     bool? progress,
+    String? claudeApiKey,
   }) {
     return SettingsModel(
       language: language ?? this.language,
@@ -32,6 +35,7 @@ class SettingsModel {
       restDay: restDay ?? this.restDay,
       weatherWorkout: weatherWorkout ?? this.weatherWorkout,
       progress: progress ?? this.progress,
+      claudeApiKey: claudeApiKey ?? this.claudeApiKey,
     );
   }
 
@@ -42,6 +46,7 @@ class SettingsModel {
         'restDay': restDay,
         'weatherWorkout': weatherWorkout,
         'progress': progress,
+        'claudeApiKey': claudeApiKey,
       };
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) => SettingsModel(
@@ -51,6 +56,7 @@ class SettingsModel {
         restDay: json['restDay'] as bool? ?? false,
         weatherWorkout: json['weatherWorkout'] as bool? ?? true,
         progress: json['progress'] as bool? ?? true,
+        claudeApiKey: json['claudeApiKey'] as String? ?? '',
       );
 
   String toJsonString() => jsonEncode(toJson());

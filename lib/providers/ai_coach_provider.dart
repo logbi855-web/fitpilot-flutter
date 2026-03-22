@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/services/ai_coach_service.dart';
 import 'profile_provider.dart';
+import 'settings_provider.dart';
 import 'streak_provider.dart';
 import 'progress_provider.dart';
 
@@ -70,8 +71,7 @@ class AiCoachNotifier extends Notifier<AiCoachState> {
         "$conditionsLine\n"
         "Give a short, direct, actionable recommendation (2–3 sentences max). Be motivating but specific.";
 
-    const apiKey =
-        String.fromEnvironment('ANTHROPIC_API_KEY', defaultValue: '');
+    final apiKey = ref.read(settingsProvider).claudeApiKey;
     final service = AiCoachService(apiKey: apiKey);
 
     try {

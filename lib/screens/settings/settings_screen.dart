@@ -9,11 +9,32 @@ import '../../providers/water_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../core/storage/storage_service.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  late TextEditingController _apiKeyCtrl;
+  bool _apiKeyObscured = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiKeyCtrl = TextEditingController(
+        text: ref.read(settingsProvider).claudeApiKey);
+  }
+
+  @override
+  void dispose() {
+    _apiKeyCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
 
@@ -96,6 +117,46 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) => notifier.update(progress: v),
           ),
 
+          const Divider(color: AppColors.border, height: 32),
+          _SectionHeader('AI Coach'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: TextField(
+              controller: _apiKeyCtrl,
+              obscureText: _apiKeyObscured,
+              style: const TextStyle(color: AppColors.text, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Claude API Key',
+                hintText: 'sk-ant-...',
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _apiKeyObscured
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: AppColors.muted,
+                        size: 18,
+                      ),
+                      onPressed: () =>
+                          setState(() => _apiKeyObscured = !_apiKeyObscured),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.save_outlined,
+                          color: AppColors.primary, size: 18),
+                      onPressed: () {
+                        notifier.update(claudeApiKey: _apiKeyCtrl.text.trim());
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('API key saved')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const Divider(color: AppColors.border, height: 32),
           _SectionHeader('Data'),
 

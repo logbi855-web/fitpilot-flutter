@@ -13,6 +13,7 @@ class BodyProfile {
   final List<String> medicalConditions;
   final String medicalOther;
   final String? takesSupplements; // yes | no | null
+  final String supplementDetails;
   final String medication;
   final bool healthCaution;
   final String? photoPath;  // local file path (not base64)
@@ -32,6 +33,7 @@ class BodyProfile {
     this.medicalConditions = const [],
     this.medicalOther = '',
     this.takesSupplements,
+    this.supplementDetails = '',
     this.medication = '',
     this.healthCaution = false,
     this.photoPath,
@@ -52,6 +54,7 @@ class BodyProfile {
     List<String>? medicalConditions,
     String? medicalOther,
     String? takesSupplements,
+    String? supplementDetails,
     String? medication,
     bool? healthCaution,
     String? photoPath,
@@ -71,6 +74,7 @@ class BodyProfile {
       medicalConditions: medicalConditions ?? this.medicalConditions,
       medicalOther: medicalOther ?? this.medicalOther,
       takesSupplements: takesSupplements ?? this.takesSupplements,
+      supplementDetails: supplementDetails ?? this.supplementDetails,
       medication: medication ?? this.medication,
       healthCaution: healthCaution ?? this.healthCaution,
       photoPath: photoPath ?? this.photoPath,
@@ -92,6 +96,7 @@ class BodyProfile {
         'medicalConditions': medicalConditions,
         'medicalOther': medicalOther,
         'takesSupplements': takesSupplements,
+        'supplementDetails': supplementDetails,
         'medication': medication,
         'healthCaution': healthCaution,
         'photoPath': photoPath,
@@ -114,6 +119,7 @@ class BodyProfile {
             [],
         medicalOther: json['medicalOther'] as String? ?? '',
         takesSupplements: json['takesSupplements'] as String?,
+        supplementDetails: json['supplementDetails'] as String? ?? '',
         medication: json['medication'] as String? ?? '',
         healthCaution: json['healthCaution'] as bool? ?? false,
         photoPath: json['photoPath'] as String?,

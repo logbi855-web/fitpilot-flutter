@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +21,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   late TextEditingController _ageCtrl;
   late TextEditingController _weightCtrl;
   late TextEditingController _targetCtrl;
+  late TextEditingController _supplementDetailsCtrl;
   late TextEditingController _medicationCtrl;
   late TextEditingController _medOtherCtrl;
 
@@ -42,6 +44,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
     _ageCtrl = TextEditingController(text: p.age?.toString() ?? '');
     _weightCtrl = TextEditingController(text: p.weight?.toString() ?? '');
     _targetCtrl = TextEditingController(text: p.targetWeight?.toString() ?? '');
+    _supplementDetailsCtrl = TextEditingController(text: p.supplementDetails);
     _medicationCtrl = TextEditingController(text: p.medication);
     _medOtherCtrl = TextEditingController(text: p.medicalOther);
     _bodyShape = p.bodyShape;
@@ -54,7 +57,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   @override
   void dispose() {
     for (final c in [_nameCtrl, _heightCtrl, _ageCtrl, _weightCtrl,
-        _targetCtrl, _medicationCtrl, _medOtherCtrl]) {
+        _targetCtrl, _supplementDetailsCtrl, _medicationCtrl, _medOtherCtrl]) {
       c.dispose();
     }
     super.dispose();
@@ -82,7 +85,9 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
       medicalConditions: _medicalConditions,
       medicalOther: _medOtherCtrl.text,
       takesSupplements: _supplements,
+      supplementDetails: _supplementDetailsCtrl.text,
       medication: _medicationCtrl.text,
+      healthCaution: _medicalConditions.isNotEmpty,
       photoPath: ref.read(profileProvider).photoPath,
     );
     await ref.read(profileProvider.notifier).save(profile);
@@ -124,7 +129,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       radius: 44,
                       backgroundColor: AppColors.primaryDim,
                       backgroundImage: profile.photoPath != null
-                          ? AssetImage(profile.photoPath!) as ImageProvider
+                          ? FileImage(File(profile.photoPath!))
                           : null,
                       child: profile.photoPath == null
                           ? Text(
@@ -300,6 +305,29 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               style: const TextStyle(color: AppColors.text),
               decoration: const InputDecoration(hintText: 'Other conditions...'),
             ),
+            if (_medicalConditions.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9800).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Color(0xFFFF9800), size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Consult your doctor before starting any new exercise or diet programme.',
+                        style: TextStyle(color: Color(0xFFFF9800), fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Supplements
@@ -311,6 +339,15 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               _SelectButton(label: 'No', value: 'no', selected: _supplements == 'no',
                   onTap: () => setState(() { _supplements = 'no'; })),
             ]),
+            if (_supplements == 'yes') ...[
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _supplementDetailsCtrl,
+                style: const TextStyle(color: AppColors.text),
+                decoration: const InputDecoration(
+                    hintText: 'e.g. Whey protein, Creatine, Omega-3...'),
+              ),
+            ],
             const SizedBox(height: 16),
 
             TextFormField(

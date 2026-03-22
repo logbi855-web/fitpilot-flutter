@@ -5,6 +5,48 @@ import '../../providers/water_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/water_ring.dart';
 
+({String icon, String message, Color color}) _waterPrompt(
+    int totalMl, int goalMl) {
+  final pct = goalMl > 0 ? (totalMl / goalMl * 100).round() : 0;
+  if (pct == 0) {
+    return (
+      icon: 'Start hydrating!',
+      message: 'Log your first glass to begin tracking.',
+      color: AppColors.muted
+    );
+  } else if (pct < 25) {
+    return (
+      icon: 'Only $totalMl ml so far.',
+      message: 'Drink a glass right now — your body needs it.',
+      color: AppColors.error
+    );
+  } else if (pct < 50) {
+    return (
+      icon: '$pct% done.',
+      message: 'Halfway to your goal. Keep sipping!',
+      color: AppColors.error
+    );
+  } else if (pct < 75) {
+    return (
+      icon: 'Good progress — $totalMl ml logged.',
+      message: '${goalMl - totalMl} ml left to reach your goal.',
+      color: AppColors.blue
+    );
+  } else if (pct < 100) {
+    return (
+      icon: 'Almost there!',
+      message: 'Only ${goalMl - totalMl} ml to go. You\'re crushing it today!',
+      color: AppColors.blue
+    );
+  } else {
+    return (
+      icon: 'Goal reached!',
+      message: '$totalMl ml consumed today. Excellent hydration!',
+      color: AppColors.primary
+    );
+  }
+}
+
 class WaterTab extends ConsumerStatefulWidget {
   const WaterTab({super.key});
 
@@ -35,6 +77,34 @@ class _WaterTabState extends ConsumerState<WaterTab> {
         children: [
           // Ring
           Center(child: WaterRing(totalMl: water.totalMl, goalMl: goal)),
+          const SizedBox(height: 12),
+          // Motivational prompt
+          Builder(builder: (_) {
+            final p = _waterPrompt(water.totalMl, goal);
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: p.color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: p.color.withValues(alpha: 0.25)),
+              ),
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 12),
+                  children: [
+                    TextSpan(
+                        text: '${p.icon} ',
+                        style: TextStyle(
+                            color: p.color, fontWeight: FontWeight.w700)),
+                    TextSpan(
+                        text: p.message,
+                        style: const TextStyle(color: AppColors.muted)),
+                  ],
+                ),
+              ),
+            );
+          }),
           const SizedBox(height: 12),
           LinearProgressIndicator(
             value: pct,

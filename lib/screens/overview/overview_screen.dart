@@ -10,6 +10,7 @@ import '../../providers/progress_provider.dart';
 import '../../providers/weather_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/ai_coach_provider.dart';
+import '../../providers/workout_provider.dart';
 import '../../core/services/ai_coach_service.dart';
 import '../../widgets/streak_dots.dart';
 import '../../widgets/weekly_chart.dart';
@@ -42,6 +43,7 @@ class OverviewScreen extends ConsumerWidget {
     final progress = ref.watch(progressProvider);
     final weather = ref.watch(weatherProvider);
     final settings = ref.watch(settingsProvider);
+    final workout = ref.watch(workoutProvider);
 
     // Last 7 days aligned oldest→newest
     final now = DateTime.now();
@@ -72,6 +74,10 @@ class OverviewScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _StatsGrid(profile: profile, water: water, settings: settings),
               const SizedBox(height: 16),
+              if (workout.savedPlans.isNotEmpty) ...[
+                _WorkoutCard(plan: workout.savedPlans.first),
+                const SizedBox(height: 16),
+              ],
               _StreakCard(streak: streak, ref: ref),
               const SizedBox(height: 16),
               _ProgressCard(entries: last7, ref: ref),
@@ -697,6 +703,77 @@ class _CoachChip extends StatelessWidget {
     return ActionChip(
       label: Text(label),
       onPressed: () => ref.read(aiCoachProvider.notifier).ask(topic),
+    );
+  }
+}
+
+// ── Workout Card ──────────────────────────────────────────────────────────────
+
+class _WorkoutCard extends StatelessWidget {
+  final dynamic plan;
+  const _WorkoutCard({required this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final tags = plan.tags as List<String>;
+    final intTag = tags.firstWhere(
+        (t) => ['high', 'low'].contains(t.toLowerCase()),
+        orElse: () => '');
+    final focusTag = tags.firstWhere(
+        (t) =>
+            ['upper', 'lower', 'full', 'strength', 'cardio', 'hiit']
+                .contains(t.toLowerCase()),
+        orElse: () => '');
+
+    return Card(
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.fitness_center,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text('Last Workout Plan',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                const Spacer(),
+                if (intTag.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDim,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(intTag.toUpperCase(),
+                        style: AppTextStyles.mono(
+                            fontSize: 9, color: AppColors.text)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(plan.title,
+                style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(plan.meta,
+                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            if (focusTag.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${plan.exercises.length} exercises · ${focusTag[0].toUpperCase()}${focusTag.substring(1)} focus',
+                style: const TextStyle(color: AppColors.muted, fontSize: 11),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

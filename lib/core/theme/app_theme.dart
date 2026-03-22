@@ -3,6 +3,18 @@ import 'package:google_fonts/google_fonts.dart';
 
 // ── Design tokens (from CSS variables) ──────────────────────────────────────
 
+/// Monospace text style — mirrors `font-family: 'Space Mono', monospace` used
+/// in the original CSS for badges, plan tags, and intensity labels.
+class AppTextStyles {
+  static TextStyle mono({
+    double fontSize = 11,
+    Color color = AppColors.muted,
+    FontWeight fontWeight = FontWeight.w400,
+  }) =>
+      GoogleFonts.spaceMono(
+          fontSize: fontSize, color: color, fontWeight: fontWeight);
+}
+
 class AppColors {
   static const bg = Color(0xFF0A0A0F);
   static const surface = Color(0xFF111118);

@@ -101,10 +101,27 @@ class WorkoutNotifier extends Notifier<WorkoutState> {
     );
   }
 
+  void loadPlan(SavedPlan plan) {
+    state = state.copyWith(
+      choices: WizardChoices(
+        intensity: plan.intensity,
+        location: plan.location,
+        focus: plan.focus,
+      ),
+      exercises: List<String>.from(plan.exercises),
+      step: 4,
+    );
+  }
+
   void updateExercise(int index, String newText) {
     final list = List<String>.from(state.exercises);
     list[index] = newText;
     state = state.copyWith(exercises: list);
+  }
+
+  void addExercise(String text) {
+    state = state.copyWith(
+        exercises: [...state.exercises, text]);
   }
 
   Future<void> savePlan({

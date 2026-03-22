@@ -132,6 +132,45 @@ class _WeatherTabState extends ConsumerState<WeatherTab> {
                   );
                 },
               ),
+            )
+          else if (!weather.loading)
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 5,
+                itemBuilder: (_, __) => Container(
+                  width: 70,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                          width: 24, height: 8,
+                          decoration: BoxDecoration(
+                              color: AppColors.border2,
+                              borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 6),
+                      Container(
+                          width: 28, height: 20,
+                          decoration: BoxDecoration(
+                              color: AppColors.border2,
+                              borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 6),
+                      Container(
+                          width: 20, height: 10,
+                          decoration: BoxDecoration(
+                              color: AppColors.border2,
+                              borderRadius: BorderRadius.circular(4))),
+                    ],
+                  ),
+                ),
+              ),
             ),
           const SizedBox(height: 16),
 

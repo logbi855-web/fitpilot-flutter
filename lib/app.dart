@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/storage/storage_service.dart';
 import 'providers/water_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/overview/overview_screen.dart';
 import 'screens/app_hub/app_hub_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -79,9 +80,17 @@ class _FitPilotAppState extends ConsumerState<FitPilotApp>
       );
     }
 
+    final lang = ref.watch(settingsProvider).language;
     return MaterialApp.router(
       title: 'FitPilot',
       theme: AppTheme.dark,
+      locale: Locale(lang),
+      supportedLocales: const [
+        Locale('en'),
+        Locale('af'),
+        Locale('fr'),
+        Locale('zu'),
+      ],
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );

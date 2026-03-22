@@ -19,7 +19,12 @@ class DietTab extends ConsumerStatefulWidget {
 }
 
 class _DietTabState extends ConsumerState<DietTab> {
-  final List<_ChatMessage> _messages = [];
+  final List<_ChatMessage> _messages = [
+    const _ChatMessage(
+      text: "Hey! I'm your Nutrition Planning Agent. Ask for a full meal plan, grocery list, recipes, or tell me what ingredients you have — I'll give you a personalised, goal-based nutrition response!",
+      isUser: false,
+    ),
+  ];
   final TextEditingController _inputCtrl = TextEditingController();
   final TextEditingController _allergyCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();

@@ -26,6 +26,7 @@ class SettingsNotifier extends Notifier<SettingsModel> {
     bool? restDay,
     bool? weatherWorkout,
     bool? progress,
+    String? claudeApiKey,
   }) {
     return save(state.copyWith(
       language: language,
@@ -34,6 +35,7 @@ class SettingsNotifier extends Notifier<SettingsModel> {
       restDay: restDay,
       weatherWorkout: weatherWorkout,
       progress: progress,
+      claudeApiKey: claudeApiKey,
     ));
   }
 

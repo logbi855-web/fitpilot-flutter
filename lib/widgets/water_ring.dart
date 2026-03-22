@@ -30,7 +30,7 @@ class WaterRing extends StatelessWidget {
                 ),
               ),
               Text(
-                '${totalMl} ml',
+                '$totalMl ml',
                 style: const TextStyle(color: AppColors.muted, fontSize: 12),
               ),
             ],
