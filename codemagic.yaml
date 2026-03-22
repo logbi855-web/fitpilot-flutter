@@ -1,0 +1,57 @@
+workflows:
+
+  # ─────────────────────────────────────────────────────────────
+  #  FitPilot — iOS build for AltStore sideloading
+  #
+  #  Signing:  no-codesign (AltStore re-signs with your Apple ID
+  #            locally on your Windows PC)
+  #  Output:   FitPilot.ipa  (download from Codemagic artifacts)
+  #  Install:  AltStore on Windows → sideload to iPhone
+  # ─────────────────────────────────────────────────────────────
+  ios-altstore:
+    name: FitPilot iOS — AltStore
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Set Flutter version
+        script: flutter --version
+
+      - name: Get dependencies
+        script: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          pod install
+
+      - name: Build iOS app (no code signing)
+        script: |
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --dart-define=ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+
+      - name: Package as IPA for AltStore
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r FitPilot.ipa Payload/
+          echo "IPA created at build/ios/iphoneos/FitPilot.ipa"
+
+    artifacts:
+      - build/ios/iphoneos/FitPilot.ipa
+
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com   # ← replace with your email
+        notify:
+          success: true
+          failure: true
