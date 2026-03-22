@@ -19,7 +19,7 @@ workflows:
       cocoapods: default
 
     scripts:
-      - name: Set Flutter version
+      - name: Print Flutter version
         script: flutter --version
 
       - name: Get dependencies
@@ -28,6 +28,7 @@ workflows:
       - name: Install CocoaPods dependencies
         script: |
           cd ios
+          pod repo update
           pod install
 
       - name: Build iOS app (no code signing)
@@ -35,7 +36,7 @@ workflows:
           flutter build ios \
             --release \
             --no-codesign \
-            --dart-define=ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+            --dart-define=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 
       - name: Package as IPA for AltStore
         script: |
@@ -43,7 +44,7 @@ workflows:
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r FitPilot.ipa Payload/
-          echo "IPA created at build/ios/iphoneos/FitPilot.ipa"
+          ls -lh FitPilot.ipa
 
     artifacts:
       - build/ios/iphoneos/FitPilot.ipa
@@ -51,7 +52,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - your-email@example.com   # ← replace with your email
+          - your-email@example.com   # ← replace with your email before building
         notify:
           success: true
           failure: true
