@@ -1,82 +1,19 @@
 workflows:
-
-  # ─────────────────────────────────────────────────────────────
-  #  FitPilot — iOS unsigned build for AltStore sideloading
-  #
-  #  Strategy: flutter pub get → pod install → xcodebuild (no sign)
-  #  Output:   FitPilot.ipa  — download from Codemagic artifacts
-  #  Install:  AltStore on Windows re-signs and installs on iPhone
-  # ─────────────────────────────────────────────────────────────
-  ios-altstore:
-    name: FitPilot iOS — AltStore
+  ios-build:
+    name: FitPilot iOS Build
     max_build_duration: 60
     instance_type: mac_mini_m2
-
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-          source: true
-
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
-
     scripts:
-      - name: Flutter version
-        script: flutter --version
-
       - name: Get dependencies
         script: flutter pub get
-
-      - name: Install xcpretty
-        script: gem install xcpretty --no-document
-
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods
         script: |
           cd ios
-          pod install --repo-update
-
-      - name: Build iOS (xcodebuild, no signing)
-        script: |
-          set -o pipefail
-          xcodebuild build \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -sdk iphoneos \
-            -configuration Release \
-            ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM="" \
-            -derivedDataPath "$CM_BUILD_DIR/output" \
-            2>&1 | xcpretty --color
-
-      - name: Package as IPA for AltStore
-        script: |
-          APP_PATH=$(find "$CM_BUILD_DIR/output/Build/Products" \
-            -name "Runner.app" \
-            ! -path "*simulator*" \
-            | head -1)
-
-          echo "Packaging: $APP_PATH"
-          mkdir -p "$CM_BUILD_DIR/ipa/Payload"
-          cp -r "$APP_PATH" "$CM_BUILD_DIR/ipa/Payload/"
-          cd "$CM_BUILD_DIR/ipa"
-          zip -r "$CM_BUILD_DIR/FitPilot.ipa" Payload/
-          echo "Done — $(du -sh "$CM_BUILD_DIR/FitPilot.ipa")"
-
+          pod install
+      - name: Build iOS
+        script: flutter build ios --debug --no-codesign
     artifacts:
-      - $CM_BUILD_DIR/FitPilot.ipa
-
-    publishing:
-      email:
-        recipients:
-          - logbi855@gmail.com
-        notify:
-          success: true
-          failure: true
+      - build/ios/iphoneos/*.app

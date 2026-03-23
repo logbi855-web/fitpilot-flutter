@@ -1,6 +1,8 @@
 # Flutter iOS Podfile
 # Auto-generated template for FitPilot
 
+platform :ios, '13.0'
+
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
