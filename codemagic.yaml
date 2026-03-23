@@ -9,18 +9,47 @@ workflows:
     scripts:
       - name: Get dependencies
         script: flutter pub get
+
       - name: Install CocoaPods
         script: |
           cd ios
           pod install
+
+      - name: Disable code signing
+        script: |
+          cd ios
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = .*;/DEVELOPMENT_TEAM = "";/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/"CODE_SIGNING_REQUIRED=YES"/"CODE_SIGNING_REQUIRED=NO"/g' Runner.xcodeproj/project.pbxproj
+
       - name: Build iOS
-        script: flutter build ios --debug --no-codesign
+        script: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            BUILD_DIR=build/ios \
+            -allowProvisioningUpdates \
+            | xcpretty
+
       - name: Package unsigned IPA
         script: |
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r FitPilot-unsigned.ipa Payload
+          APP_PATH=$(find build/ios -name "Runner.app" -type d | head -1)
+          if [ -n "$APP_PATH" ]; then
+            mkdir -p Payload
+            cp -r "$APP_PATH" Payload/
+            zip -r FitPilot-unsigned.ipa Payload
+          fi
+
     artifacts:
-      - build/ios/iphoneos/FitPilot-unsigned.ipa
-      - build/ios/iphoneos/**/*.app
+      - build/ios/Debug-iphoneos/*.app
+      - build/ios/**/*.app
+      - '**/*.ipa'
+      - FitPilot-unsigned.ipa
