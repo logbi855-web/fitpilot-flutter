@@ -25,6 +25,15 @@ workflows:
 
       - name: Build iOS
         script: |
+          set -e
+
+          echo "=== Flutter pub get ==="
+          flutter pub get
+
+          echo "=== Generating Flutter build files ==="
+          flutter build ios --debug --no-codesign 2>&1 || true
+
+          echo "=== Running xcodebuild ==="
           cd ios
           xcodebuild -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -37,11 +46,12 @@ workflows:
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             SYMROOT=$CM_BUILD_DIR/build/ios/output \
-            | xcpretty
+            2>&1 | tee build_log.txt
 
-          echo "=== Build output contents ==="
+          echo "=== Build result: $? ==="
+          echo "=== Checking output ==="
           find $CM_BUILD_DIR/build/ios/output -name "*.app" -type d
-          ls -la $CM_BUILD_DIR/build/ios/output/Debug-iphoneos/ 2>/dev/null
+          du -sh $CM_BUILD_DIR/build/ios/output/Debug-iphoneos/Runner.app 2>/dev/null
 
       - name: Package unsigned IPA
         script: |
