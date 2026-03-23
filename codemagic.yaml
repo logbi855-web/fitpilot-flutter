@@ -15,30 +15,52 @@ workflows:
           cd ios
           pod install
 
+      - name: Disable code signing in Xcode project
+        script: |
+          cd ios
+          sed -i '' 's/CODE_SIGN_IDENTITY = ".*"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = .*;/DEVELOPMENT_TEAM = "";/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' '/CODE_SIGN_IDENTITY/!b;n;s/"Apple Development"/""/g' Runner.xcodeproj/project.pbxproj
+
+          ruby -e '
+            path = "Runner.xcodeproj/project.pbxproj"
+            content = File.read(path)
+            content.gsub!(/CODE_SIGNING_REQUIRED = YES/, "CODE_SIGNING_REQUIRED = NO")
+            content.gsub!(/CODE_SIGNING_ALLOWED = YES/, "CODE_SIGNING_ALLOWED = NO")
+            unless content.include?("CODE_SIGNING_ALLOWED = NO")
+              content.gsub!(/buildSettings = \{/) { |m| "#{m}\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;" }
+            end
+            File.write(path, content)
+          '
+          echo "Code signing disabled"
+
       - name: Build iOS
         script: |
           set -eo pipefail
-          flutter build ios --debug --simulator 2>&1 | tee build_log.txt
+          flutter build ios --debug --no-codesign 2>&1 | tee build_log.txt
           echo "=== Checking for built app ==="
-          find build -name "*.app" -type d 2>/dev/null
-          APP=$(find build -name "Runner.app" -type d 2>/dev/null | head -1)
+          find build -name "Runner.app" -type d 2>/dev/null
+          APP=$(find build/ios/iphoneos -name "Runner.app" -type d 2>/dev/null | head -1)
           if [ -n "$APP" ]; then
             du -sh "$APP"
           fi
 
-      - name: Package app
+      - name: Package unsigned IPA
         script: |
-          APP=$(find build -name "Runner.app" -type d 2>/dev/null | head -1)
+          APP=$(find build/ios/iphoneos -name "Runner.app" -type d 2>/dev/null | head -1)
           echo "Found: $APP"
+          du -sh "$APP" 2>/dev/null
           if [ -d "$APP" ]; then
-            zip -r FitPilot-simulator.zip "$APP"
-            ls -la FitPilot-simulator.zip
+            mkdir -p Payload
+            cp -r "$APP" Payload/
+            zip -r FitPilot-unsigned.ipa Payload
+            ls -la FitPilot-unsigned.ipa
           else
-            echo "No app found"
-            find . -name "*.app" -type d 2>/dev/null
+            echo "No app found, searching..."
+            find build -name "*.app" -type d 2>/dev/null
             exit 1
           fi
 
     artifacts:
-      - FitPilot-simulator.zip
-      - '**/*.zip'
+      - FitPilot-unsigned.ipa
+      - '**/*.ipa'
