@@ -26,9 +26,6 @@ dependencies:
   # Local storage
   shared_preferences: ^2.3.3
 
-  # Fonts
-  google_fonts: 6.1.0
-
   # Image picker
   image_picker: ^1.1.2
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // ── Design tokens (from CSS variables) ──────────────────────────────────────
 
@@ -11,8 +10,11 @@ class AppTextStyles {
     Color color = AppColors.muted,
     FontWeight fontWeight = FontWeight.w400,
   }) =>
-      GoogleFonts.spaceMono(
-          fontSize: fontSize, color: color, fontWeight: fontWeight);
+      TextStyle(
+          fontFamily: 'Courier New',
+          fontSize: fontSize,
+          color: color,
+          fontWeight: fontWeight);
 }
 
 class AppColors {
@@ -56,10 +58,10 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         indicatorColor: AppColors.primaryDim,
         labelTextStyle: WidgetStateProperty.all(
-          GoogleFonts.syne(fontSize: 11, color: AppColors.text),
+          const TextStyle(fontSize: 11, color: AppColors.text),
         ),
       ),
-      textTheme: GoogleFonts.syneTextTheme(base.textTheme).apply(
+      textTheme: base.textTheme.apply(
         bodyColor: AppColors.text,
         displayColor: AppColors.text,
       ),
@@ -87,7 +89,7 @@ class AppTheme {
           foregroundColor: AppColors.bg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          textStyle: GoogleFonts.syne(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -100,7 +102,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.card2,
-        labelStyle: GoogleFonts.syne(color: AppColors.text, fontSize: 12),
+        labelStyle: const TextStyle(color: AppColors.text, fontSize: 12),
         side: const BorderSide(color: AppColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
