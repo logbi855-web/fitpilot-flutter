@@ -15,72 +15,63 @@ workflows:
           cd ios
           pod install
 
-      - name: Disable code signing
+      - name: Disable code signing in Xcode project
         script: |
           cd ios
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
+          # Disable all code signing in project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = ".*"/CODE_SIGN_IDENTITY = ""/g' Runner.xcodeproj/project.pbxproj
           sed -i '' 's/DEVELOPMENT_TEAM = .*;/DEVELOPMENT_TEAM = "";/g' Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/"CODE_SIGNING_REQUIRED=YES"/"CODE_SIGNING_REQUIRED=NO"/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' '/CODE_SIGN_IDENTITY/!b;n;s/"Apple Development"/""/g' Runner.xcodeproj/project.pbxproj
+
+          # Add signing overrides to every build config
+          ruby -e '
+            path = "Runner.xcodeproj/project.pbxproj"
+            content = File.read(path)
+            content.gsub!(/CODE_SIGNING_REQUIRED = YES/, "CODE_SIGNING_REQUIRED = NO")
+            content.gsub!(/CODE_SIGNING_ALLOWED = YES/, "CODE_SIGNING_ALLOWED = NO")
+            unless content.include?("CODE_SIGNING_ALLOWED = NO")
+              content.gsub!(/buildSettings = \{/) { |m| "#{m}\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;" }
+            end
+            File.write(path, content)
+          '
+          echo "Code signing disabled"
 
       - name: Build iOS
         script: |
-          set -e
+          set -eo pipefail
+          flutter build ios --debug --no-codesign 2>&1 | tee build_log.txt
 
-          echo "=== Flutter pub get ==="
-          flutter pub get
+          echo "=== Checking for built app ==="
+          find build/ios -name "Runner.app" -type d 2>/dev/null
+          find . -path "*/Debug-iphoneos/Runner.app" -type d 2>/dev/null
 
-          echo "=== Generating Flutter build files ==="
-          flutter build ios --debug --no-codesign 2>&1 || true
-
-          echo "=== Running xcodebuild ==="
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Debug \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            SYMROOT=$CM_BUILD_DIR/build/ios/output \
-            2>&1 | tee build_log.txt
-
-          echo "=== Build result: $? ==="
-          echo "=== Checking output ==="
-          find $CM_BUILD_DIR/build/ios/output -name "*.app" -type d
-          du -sh $CM_BUILD_DIR/build/ios/output/Debug-iphoneos/Runner.app 2>/dev/null
+          # Check size
+          APP=$(find build/ios -name "Runner.app" -type d 2>/dev/null | head -1)
+          if [ -n "$APP" ]; then
+            du -sh "$APP"
+          fi
 
       - name: Package unsigned IPA
         script: |
-          APP_PATH="$CM_BUILD_DIR/build/ios/output/Debug-iphoneos/Runner.app"
+          APP_PATH=$(find . -name "Runner.app" -type d -path "*/Debug-iphoneos/*" 2>/dev/null | head -1)
 
-          if [ ! -d "$APP_PATH" ]; then
-            echo "Not at expected path, searching..."
-            find $CM_BUILD_DIR -name "Runner.app" -type d
-            APP_PATH=$(find $CM_BUILD_DIR -name "Runner.app" -type d -path "*/Debug-iphoneos/*" | head -1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find . -name "Runner.app" -type d 2>/dev/null | sort -r | head -1)
           fi
 
-          echo "Using APP_PATH: $APP_PATH"
-          ls -la "$APP_PATH" 2>/dev/null
+          echo "Using: $APP_PATH"
           du -sh "$APP_PATH" 2>/dev/null
 
-          if [ -d "$APP_PATH" ] && [ "$(du -sm "$APP_PATH" | cut -f1)" -gt 1 ]; then
+          if [ -d "$APP_PATH" ]; then
             mkdir -p Payload
             cp -r "$APP_PATH" Payload/
             zip -r FitPilot-unsigned.ipa Payload
-            echo "=== IPA size ==="
             ls -la FitPilot-unsigned.ipa
           else
-            echo "ERROR: Runner.app is missing or too small"
-            echo "Full search:"
-            find / -name "Runner.app" -type d 2>/dev/null
+            echo "FAILED: no Runner.app found"
             exit 1
           fi
 
     artifacts:
-      - '**/*.ipa'
       - FitPilot-unsigned.ipa
-      - Payload/*.app
+      - '**/*.ipa'
