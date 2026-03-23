@@ -15,5 +15,12 @@ workflows:
           pod install
       - name: Build iOS
         script: flutter build ios --debug --no-codesign
+      - name: Package unsigned IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r FitPilot-unsigned.ipa Payload
     artifacts:
-      - build/ios/iphoneos/*.app
+      - build/ios/iphoneos/FitPilot-unsigned.ipa
+      - build/ios/iphoneos/**/*.app
