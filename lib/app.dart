@@ -5,30 +5,52 @@ import 'core/theme/app_theme.dart';
 import 'core/storage/storage_service.dart';
 import 'providers/water_provider.dart';
 import 'providers/settings_provider.dart';
-import 'screens/overview/overview_screen.dart';
-import 'screens/app_hub/app_hub_screen.dart';
+import 'screens/shell/main_shell.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/settings/settings_screen.dart';
 
-final _router = GoRouter(
-  initialLocation: '/',
-  routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const OverviewScreen(),
-    ),
-    GoRoute(
-      path: '/app/:tab',
-      builder: (context, state) {
-        final tab = state.pathParameters['tab'] ?? 'weather';
-        return AppHubScreen(activeTab: tab);
+GoRouter _buildRouter() => GoRouter(
+      initialLocation: '/',
+      redirect: (context, state) {
+        final done = StorageService.getString(StorageKeys.onboarding) != null;
+        if (!done && state.uri.path != '/onboarding') return '/onboarding';
+        return null;
       },
-    ),
-    GoRoute(
-      path: '/settings',
-      builder: (context, state) => const SettingsScreen(),
-    ),
-  ],
-);
+      routes: [
+        GoRoute(
+          path: '/',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: MainShell(),
+          ),
+        ),
+        GoRoute(
+          path: '/onboarding',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const OnboardingScreen(),
+            transitionsBuilder: (context, animation, secondary, child) =>
+                FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/settings',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const SettingsScreen(),
+            transitionsBuilder: (context, animation, secondary, child) =>
+                SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1.0, 0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ],
+    );
 
 class FitPilotApp extends ConsumerStatefulWidget {
   const FitPilotApp({super.key});
@@ -40,6 +62,7 @@ class FitPilotApp extends ConsumerStatefulWidget {
 class _FitPilotAppState extends ConsumerState<FitPilotApp>
     with WidgetsBindingObserver {
   bool _initialized = false;
+  late final GoRouter _router;
 
   @override
   void initState() {
@@ -50,12 +73,14 @@ class _FitPilotAppState extends ConsumerState<FitPilotApp>
 
   Future<void> _init() async {
     await StorageService.init();
-    if (mounted) setState(() => _initialized = true);
+    if (mounted) {
+      _router = _buildRouter();
+      setState(() => _initialized = true);
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Check for midnight water-tracker reset on app resume
     if (state == AppLifecycleState.resumed) {
       ref.read(waterProvider.notifier).checkMidnightReset();
     }

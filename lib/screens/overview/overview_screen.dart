@@ -1,7 +1,7 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/streak_provider.dart';
@@ -11,6 +11,7 @@ import '../../providers/weather_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/ai_coach_provider.dart';
 import '../../providers/workout_provider.dart';
+import '../../providers/tab_provider.dart';
 import '../../core/services/ai_coach_service.dart';
 import '../../widgets/streak_dots.dart';
 import '../../widgets/weekly_chart.dart';
@@ -18,7 +19,6 @@ import '../../utils/weather_icon_mapper.dart';
 import '../../utils/bmi_calc.dart';
 import '../../models/progress_entry.dart';
 
-// Motivational messages — picked once per app session (mirrors JS sessionStorage logic).
 const _motivationMessages = [
   'Small progress is still progress.',
   'Consistency beats motivation.',
@@ -29,14 +29,64 @@ const _motivationMessages = [
   'Show up even when it\'s hard.',
 ];
 
-final _sessionMotivation = _motivationMessages[
-    Random().nextInt(_motivationMessages.length)];
+final _sessionMotivation =
+    _motivationMessages[Random().nextInt(_motivationMessages.length)];
 
-class OverviewScreen extends ConsumerWidget {
+class OverviewScreen extends ConsumerStatefulWidget {
   const OverviewScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OverviewScreen> createState() => _OverviewScreenState();
+}
+
+class _OverviewScreenState extends ConsumerState<OverviewScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1100));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  /// Returns a fade animation staggered by [index].
+  Animation<double> _fade(int index) => CurvedAnimation(
+        parent: _ctrl,
+        curve: Interval(
+          (index * 0.08).clamp(0.0, 0.7),
+          ((index * 0.08) + 0.35).clamp(0.1, 1.0),
+          curve: Curves.easeOut,
+        ),
+      );
+
+  /// Returns a slide-up animation staggered by [index].
+  Animation<Offset> _slide(int index) =>
+      Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: Interval(
+            (index * 0.08).clamp(0.0, 0.7),
+            ((index * 0.08) + 0.35).clamp(0.1, 1.0),
+            curve: Curves.easeOut,
+          ),
+        ),
+      );
+
+  Widget _animated(int index, Widget child) => FadeTransition(
+        opacity: _fade(index),
+        child: SlideTransition(position: _slide(index), child: child),
+      );
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
     final streak = ref.watch(streakProvider);
     final water = ref.watch(waterProvider);
@@ -45,7 +95,6 @@ class OverviewScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final workout = ref.watch(workoutProvider);
 
-    // Last 7 days aligned oldest→newest
     final now = DateTime.now();
     final last7 = List.generate(7, (i) {
       final d = now.subtract(Duration(days: 6 - i));
@@ -57,55 +106,78 @@ class OverviewScreen extends ConsumerWidget {
       );
     });
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _HeroCard(
-                name: profile.name,
-                weatherData: weather.current,
-                city: weather.city,
-                motivation: _sessionMotivation,
-              ),
-              const SizedBox(height: 16),
-              _StatsGrid(profile: profile, water: water, settings: settings),
-              const SizedBox(height: 16),
-              if (workout.savedPlans.isNotEmpty) ...[
-                _WorkoutCard(plan: workout.savedPlans.first),
-                const SizedBox(height: 16),
-              ],
-              _StreakCard(streak: streak, ref: ref),
-              const SizedBox(height: 16),
-              _ProgressCard(entries: last7, ref: ref),
-              const SizedBox(height: 16),
-              _WeeklyReportCard(
-                  progress: progress, longestStreak: streak.longestStreak, water: water),
-              const SizedBox(height: 16),
-              const _AiCoachCard(),
-              const SizedBox(height: 16),
-              _ModulesGrid(),
-            ],
+    int animIdx = 0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _animated(
+            animIdx++,
+            _HeroCard(
+              profile: profile,
+              weatherData: weather.current,
+              city: weather.city,
+              motivation: _sessionMotivation,
+            ),
           ),
-        ),
+          const SizedBox(height: 14),
+          _animated(
+            animIdx++,
+            _StatsGrid(profile: profile, water: water, settings: settings),
+          ),
+          const SizedBox(height: 14),
+          if (workout.savedPlans.isNotEmpty) ...[
+            _animated(animIdx++, _WorkoutCard(plan: workout.savedPlans.first)),
+            const SizedBox(height: 14),
+          ] else
+            () {
+              animIdx++;
+              return const SizedBox.shrink();
+            }(),
+          _animated(
+            animIdx++,
+            _StreakCard(
+              streak: streak,
+              onLogWorkout: () =>
+                  ref.read(streakProvider.notifier).logWorkout(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _animated(
+            animIdx++,
+            _ProgressCard(entries: last7),
+          ),
+          const SizedBox(height: 14),
+          _animated(
+            animIdx++,
+            _WeeklyReportCard(
+              progress: progress,
+              longestStreak: streak.longestStreak,
+              water: water,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _animated(animIdx++, const _AiCoachCard()),
+          const SizedBox(height: 14),
+          _animated(animIdx, const _ModulesGrid()),
+        ],
       ),
     );
   }
 }
 
-// ── Hero Card ────────────────────────────────────────────────────────────────
+// ── Hero Card ─────────────────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
-  final String name;
+  final dynamic profile;
   final dynamic weatherData;
   final String city;
   final String motivation;
 
   const _HeroCard({
-    required this.name,
+    required this.profile,
     required this.weatherData,
     required this.city,
     required this.motivation,
@@ -113,15 +185,30 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final weatherIcon = weatherData != null
-        ? WeatherIconMapper.map(weatherData.weatherId).emoji
-        : '🌡';
+    final weatherInfo = weatherData != null
+        ? WeatherIconMapper.map(weatherData.weatherId as int)
+        : null;
+    final weatherIcon = weatherInfo?.emoji ?? '';
+    final weatherLabel = weatherInfo?.label ?? '';
     final tempStr =
-        weatherData != null ? '${weatherData.temp.round()}°C' : '--';
+        weatherData != null ? '${(weatherData.temp as num).round()}°C' : '--';
+    final name = profile.name as String? ?? 'there';
+    final photoPath = profile.photoPath as String?;
 
-    return Card(
-      color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E1040),
+            Color(0xFF2D1B69),
+            Color(0xFF120D2A),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -129,16 +216,24 @@ class _HeroCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.primaryDim,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Hero(
+                  tag: 'profile-avatar',
+                  child: CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppColors.primaryDim,
+                    backgroundImage: photoPath != null
+                        ? FileImage(File(photoPath))
+                        : null,
+                    child: photoPath == null
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -155,36 +250,63 @@ class _HeroCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(weatherIcon,
-                              style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$tempStr · $city',
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 13),
-                          ),
-                        ],
-                      ),
+                      if (weatherData != null)
+                        Row(
+                          children: [
+                            Text(weatherIcon,
+                                style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 5),
+                            Text(
+                              tempStr,
+                              style: const TextStyle(
+                                  color: AppColors.text,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            if (weatherLabel.isNotEmpty) ...[
+                              const SizedBox(width: 5),
+                              Text(
+                                '· $weatherLabel',
+                                style: const TextStyle(
+                                    color: AppColors.muted, fontSize: 12),
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            _LocalBadge(),
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            const Text('--',
+                                style: TextStyle(
+                                    color: AppColors.muted, fontSize: 13)),
+                            const SizedBox(width: 8),
+                            _LocalBadge(),
+                          ],
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.primaryDim.withValues(alpha: 0.15),
+                color: AppColors.primaryDim.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25)),
               ),
               child: Text(
                 motivation,
                 style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic),
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -194,7 +316,31 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
-// ── Stats Grid ───────────────────────────────────────────────────────────────
+class _LocalBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border:
+            Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: const Text(
+        'LOCAL',
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Stats Grid ────────────────────────────────────────────────────────────────
 
 class _StatsGrid extends StatelessWidget {
   final dynamic profile;
@@ -207,7 +353,7 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bmiStr = profile.bmi != null
-        ? '${profile.bmi!.toStringAsFixed(1)} (${BmiCalc.categoryLabel(profile.bmiCategory ?? '')})'
+        ? '${(profile.bmi as double).toStringAsFixed(1)} (${BmiCalc.categoryLabel(profile.bmiCategory as String? ?? '')})'
         : '--';
 
     return GridView.count(
@@ -216,13 +362,18 @@ class _StatsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.6,
+      childAspectRatio: 1.55,
       children: [
         _StatTile(
             label: 'Goal',
-            value: profile.goal ?? '--',
+            value: profile.goal != null
+                ? _goalLabel(profile.goal as String)
+                : '--',
             icon: Icons.flag_outlined),
-        _StatTile(label: 'BMI', value: bmiStr, icon: Icons.monitor_weight_outlined),
+        _StatTile(
+            label: 'BMI',
+            value: bmiStr,
+            icon: Icons.monitor_weight_outlined),
         _StatTile(
           label: 'Water',
           value: '${water.totalMl} / ${settings.waterGoal} ml',
@@ -236,6 +387,13 @@ class _StatsGrid extends StatelessWidget {
       ],
     );
   }
+
+  String _goalLabel(String g) => switch (g) {
+        'lose' => 'Lose Weight',
+        'gain' => 'Gain Muscle',
+        'maintain' => 'Maintain',
+        _ => g,
+      };
 }
 
 class _StatTile extends StatelessWidget {
@@ -243,15 +401,17 @@ class _StatTile extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  const _StatTile({required this.label, required this.value, required this.icon});
+  const _StatTile(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -265,13 +425,15 @@ class _StatTile extends StatelessWidget {
                         color: AppColors.muted, fontSize: 11)),
               ],
             ),
-            Text(value,
-                style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              value,
+              style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
@@ -279,13 +441,13 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ── Streak Card ──────────────────────────────────────────────────────────────
+// ── Streak Card ───────────────────────────────────────────────────────────────
 
 class _StreakCard extends StatelessWidget {
   final dynamic streak;
-  final WidgetRef ref;
+  final VoidCallback onLogWorkout;
 
-  const _StreakCard({required this.streak, required this.ref});
+  const _StreakCard({required this.streak, required this.onLogWorkout});
 
   String get _title {
     final n = streak.currentStreak as int;
@@ -303,12 +465,6 @@ class _StreakCard extends StatelessWidget {
     return 'Legendary consistency';
   }
 
-  String get _label {
-    final n = streak.currentStreak as int;
-    if (n == 0) return 'Log a workout to begin';
-    return '$n day streak';
-  }
-
   bool get _loggedToday {
     final today = DateTime.now();
     final key =
@@ -320,7 +476,8 @@ class _StreakCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -329,24 +486,32 @@ class _StreakCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_title,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_title,
+                          style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700)),
+                      Text(
+                        streak.currentStreak == 0
+                            ? 'Log a workout to begin'
+                            : '${streak.currentStreak} day streak',
                         style: const TextStyle(
-                            color: AppColors.text,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700)),
-                    Text(_label,
-                        style: const TextStyle(
-                            color: AppColors.primary, fontSize: 13)),
-                  ],
+                            color: AppColors.primary, fontSize: 13),
+                      ),
+                    ],
+                  ),
                 ),
-                Text('${streak.currentStreak}',
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  '${streak.currentStreak}',
+                  style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800),
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -354,14 +519,15 @@ class _StreakCard extends StatelessWidget {
                 style: const TextStyle(
                     color: AppColors.muted, fontSize: 12)),
             const SizedBox(height: 12),
-            StreakDots(history: streak.history),
+            StreakDots(history: streak.history as List<String>),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: _loggedToday
-                  ? null
-                  : () => ref.read(streakProvider.notifier).logWorkout(),
-              child: Text(
-                  _loggedToday ? 'Logged today' : "Log today's workout"),
+              onPressed: _loggedToday ? null : onLogWorkout,
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(40)),
+              child: Text(_loggedToday
+                  ? 'Logged today'
+                  : "Log today's workout"),
             ),
           ],
         ),
@@ -374,9 +540,8 @@ class _StreakCard extends StatelessWidget {
 
 class _ProgressCard extends ConsumerStatefulWidget {
   final List<ProgressEntry> entries;
-  final WidgetRef ref;
 
-  const _ProgressCard({required this.entries, required this.ref});
+  const _ProgressCard({required this.entries});
 
   @override
   ConsumerState<_ProgressCard> createState() => _ProgressCardState();
@@ -409,7 +574,8 @@ class _ProgressCardState extends ConsumerState<_ProgressCard> {
   Widget build(BuildContext context) {
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -490,13 +656,11 @@ class _WeeklyReportCard extends StatelessWidget {
 
     final workouts =
         weekEntries.fold(0, (s, e) => s + e.workoutsLogged);
-    final cals =
-        weekEntries.fold(0, (s, e) => s + e.caloriesBurned);
+    final cals = weekEntries.fold(0, (s, e) => s + e.caloriesBurned);
     final activeDays = weekEntries
         .where((e) => e.workoutsLogged > 0 || e.caloriesBurned > 0)
         .length;
     final consistency = (activeDays / 7 * 100).round();
-
     final weekNum = _isoWeek(now);
 
     String recommendation;
@@ -519,7 +683,8 @@ class _WeeklyReportCard extends StatelessWidget {
 
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -553,7 +718,7 @@ class _WeeklyReportCard extends StatelessWidget {
               _ReportStat(label: 'Workouts', value: '$workouts'),
               _ReportStat(
                   label: 'Calories',
-                  value: cals > 0 ? '${cals.toString()} kcal' : '0 kcal'),
+                  value: cals > 0 ? '$cals kcal' : '0 kcal'),
               _ReportStat(
                   label: 'Best Streak', value: '$longestStreak days'),
             ]),
@@ -582,9 +747,8 @@ class _WeeklyReportCard extends StatelessWidget {
     final d = DateTime(date.year, date.month, date.day);
     final thursday =
         d.add(Duration(days: 4 - (d.weekday == 7 ? 0 : d.weekday)));
-    final firstThursday =
-        DateTime(thursday.year, 1, 4)
-            .add(Duration(days: 4 - DateTime(thursday.year, 1, 4).weekday));
+    final firstThursday = DateTime(thursday.year, 1, 4).add(
+        Duration(days: 4 - DateTime(thursday.year, 1, 4).weekday));
     return ((thursday.difference(firstThursday).inDays) / 7).floor() + 1;
   }
 }
@@ -624,7 +788,8 @@ class _AiCoachCard extends ConsumerWidget {
 
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -667,20 +832,10 @@ class _AiCoachCard extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _CoachChip(
-                    label: 'Workout',
-                    topic: CoachTopic.workout,
-                    ref: ref),
-                _CoachChip(
-                    label: 'Meal', topic: CoachTopic.meal, ref: ref),
-                _CoachChip(
-                    label: 'Recovery',
-                    topic: CoachTopic.recovery,
-                    ref: ref),
-                _CoachChip(
-                    label: 'Motivation',
-                    topic: CoachTopic.motivation,
-                    ref: ref),
+                _CoachChip(label: 'Workout', topic: CoachTopic.workout),
+                _CoachChip(label: 'Meal', topic: CoachTopic.meal),
+                _CoachChip(label: 'Recovery', topic: CoachTopic.recovery),
+                _CoachChip(label: 'Motivation', topic: CoachTopic.motivation),
               ],
             ),
           ],
@@ -690,16 +845,14 @@ class _AiCoachCard extends ConsumerWidget {
   }
 }
 
-class _CoachChip extends StatelessWidget {
+class _CoachChip extends ConsumerWidget {
   final String label;
   final CoachTopic topic;
-  final WidgetRef ref;
 
-  const _CoachChip(
-      {required this.label, required this.topic, required this.ref});
+  const _CoachChip({required this.label, required this.topic});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ActionChip(
       label: Text(label),
       onPressed: () => ref.read(aiCoachProvider.notifier).ask(topic),
@@ -720,14 +873,14 @@ class _WorkoutCard extends StatelessWidget {
         (t) => ['high', 'low'].contains(t.toLowerCase()),
         orElse: () => '');
     final focusTag = tags.firstWhere(
-        (t) =>
-            ['upper', 'lower', 'full', 'strength', 'cardio', 'hiit']
-                .contains(t.toLowerCase()),
+        (t) => ['upper', 'lower', 'full', 'strength', 'cardio', 'hiit']
+            .contains(t.toLowerCase()),
         orElse: () => '');
 
     return Card(
       color: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -743,8 +896,8 @@ class _WorkoutCard extends StatelessWidget {
                 const Spacer(),
                 if (intTag.isNotEmpty)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppColors.primaryDim,
                       borderRadius: BorderRadius.circular(8),
@@ -756,18 +909,19 @@ class _WorkoutCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(plan.title,
+            Text(plan.title as String,
                 style: const TextStyle(
                     color: AppColors.text,
                     fontSize: 15,
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text(plan.meta,
-                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            Text(plan.meta as String,
+                style:
+                    const TextStyle(color: AppColors.muted, fontSize: 12)),
             if (focusTag.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
-                '${plan.exercises.length} exercises · ${focusTag[0].toUpperCase()}${focusTag.substring(1)} focus',
+                '${(plan.exercises as List).length} exercises · ${focusTag[0].toUpperCase()}${focusTag.substring(1)} focus',
                 style: const TextStyle(color: AppColors.muted, fontSize: 11),
               ),
             ],
@@ -778,16 +932,18 @@ class _WorkoutCard extends StatelessWidget {
   }
 }
 
-// ── Modules Grid ─────────────────────────────────────────────────────────────
+// ── Modules Grid ──────────────────────────────────────────────────────────────
 
-class _ModulesGrid extends StatelessWidget {
+class _ModulesGrid extends ConsumerWidget {
+  const _ModulesGrid();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const modules = [
-      (label: 'Weather', icon: Icons.wb_sunny_outlined, route: '/app/weather'),
-      (label: 'Workouts', icon: Icons.fitness_center, route: '/app/workout'),
-      (label: 'Diet AI', icon: Icons.restaurant_menu, route: '/app/diet'),
-      (label: 'Water', icon: Icons.water_drop_outlined, route: '/app/water'),
+      (label: 'Workouts', icon: Icons.fitness_center, tabIndex: 1),
+      (label: 'Diet AI', icon: Icons.restaurant_menu_outlined, tabIndex: 2),
+      (label: 'Water', icon: Icons.water_drop_outlined, tabIndex: 3),
+      (label: 'Profile', icon: Icons.person_outline, tabIndex: 4),
     ];
 
     return GridView.count(
@@ -798,22 +954,25 @@ class _ModulesGrid extends StatelessWidget {
       crossAxisSpacing: 12,
       childAspectRatio: 1.4,
       children: modules.map((m) {
-        return GestureDetector(
-          onTap: () => context.go(m.route),
-          child: Card(
-            color: AppColors.card2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        return Material(
+          color: AppColors.card2,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () =>
+                ref.read(selectedTabProvider.notifier).state = m.tabIndex,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(m.icon, color: AppColors.primary, size: 28),
                 const SizedBox(height: 8),
-                Text(m.label,
-                    style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  m.label,
+                  style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),

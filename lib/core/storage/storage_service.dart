@@ -11,6 +11,7 @@ class StorageKeys {
   static const energy = 'kelly_energy';
   static const location = 'kelly_location';
   static const avatar = 'kelly_avatar';
+  static const onboarding = 'fitpilot_onboarding_v1';
 }
 
 class StorageService {

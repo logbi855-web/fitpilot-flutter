@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\YLED\\\\Desktop\\\\fitpilot-v3\\\\my_app_flutter'; git rev-parse --show-toplevel 2>&1\")"
+    ]
+  }
+}
