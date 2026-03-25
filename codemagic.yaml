@@ -37,7 +37,7 @@ workflows:
       - name: Build iOS
         script: |
           set -eo pipefail
-          flutter build ios --debug --no-codesign 2>&1 | tee build_log.txt
+          flutter build ios --release --no-codesign 2>&1 | tee build_log.txt
           echo "=== Checking for built app ==="
           find build -name "Runner.app" -type d 2>/dev/null
           APP=$(find build/ios/iphoneos -name "Runner.app" -type d 2>/dev/null | head -1)
