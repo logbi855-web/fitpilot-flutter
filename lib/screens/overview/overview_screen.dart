@@ -17,6 +17,7 @@ import '../../widgets/streak_dots.dart';
 import '../../widgets/weekly_chart.dart';
 import '../../core/services/weather_service.dart';
 import '../../widgets/weather_card_theme.dart';
+import '../../widgets/glow_icon.dart';
 import '../../utils/bmi_calc.dart';
 import '../../models/progress_entry.dart';
 
@@ -383,24 +384,30 @@ class _StatsGrid extends StatelessWidget {
       childAspectRatio: 1.55,
       children: [
         _StatTile(
-            label: 'Goal',
-            value: profile.goal != null
-                ? _goalLabel(profile.goal as String)
-                : '--',
-            icon: Icons.flag_outlined),
+          label: 'Goal',
+          value: profile.goal != null
+              ? _goalLabel(profile.goal as String)
+              : '--',
+          icon: Icons.flag_rounded,
+          glowColors: const [Color(0xFFFFB74D), Color(0xFFEF6C00)],
+        ),
         _StatTile(
-            label: 'BMI',
-            value: bmiStr,
-            icon: Icons.monitor_weight_outlined),
+          label: 'BMI',
+          value: bmiStr,
+          icon: Icons.monitor_weight_outlined,
+          glowColors: const [Color(0xFF64B5F6), Color(0xFF1565C0)],
+        ),
         _StatTile(
           label: 'Water',
           value: '${water.totalMl} / ${settings.waterGoal} ml',
-          icon: Icons.water_drop_outlined,
+          icon: Icons.water_drop_rounded,
+          glowColors: const [Color(0xFF4DD0E1), Color(0xFF00838F)],
         ),
         _StatTile(
           label: 'Weight',
           value: profile.weight != null ? '${profile.weight} kg' : '--',
-          icon: Icons.fitness_center,
+          icon: Icons.fitness_center_rounded,
+          glowColors: const [Color(0xFFA78BFA), Color(0xFF5B21B6)],
         ),
       ],
     );
@@ -418,9 +425,14 @@ class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  final List<Color> glowColors;
 
-  const _StatTile(
-      {required this.label, required this.value, required this.icon});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.glowColors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -436,8 +448,8 @@ class _StatTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 14, color: AppColors.primary),
-                const SizedBox(width: 6),
+                GlowIcon(icon: icon, colors: glowColors, size: 22),
+                const SizedBox(width: 8),
                 Text(label,
                     style: const TextStyle(
                         color: AppColors.muted, fontSize: 11)),
@@ -1161,8 +1173,7 @@ class _WorkoutCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.fitness_center,
-                    size: 16, color: AppColors.primary),
+                const GlowIcon.workout(size: 26),
                 const SizedBox(width: 8),
                 const Text('Last Workout Plan',
                     style: TextStyle(color: AppColors.muted, fontSize: 12)),
@@ -1212,11 +1223,27 @@ class _ModulesGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const modules = [
-      (label: 'Workouts', icon: Icons.fitness_center, tabIndex: 1),
-      (label: 'Diet AI', icon: Icons.restaurant_menu_outlined, tabIndex: 2),
-      (label: 'Water', icon: Icons.water_drop_outlined, tabIndex: 3),
-      (label: 'Profile', icon: Icons.person_outline, tabIndex: 4),
+    final modules = [
+      _Module(
+        label: 'Workouts',
+        tabIndex: 1,
+        glowIcon: const GlowIcon.workout(size: 44),
+      ),
+      _Module(
+        label: 'Diet AI',
+        tabIndex: 2,
+        glowIcon: const GlowIcon.diet(size: 44),
+      ),
+      _Module(
+        label: 'Water',
+        tabIndex: 3,
+        glowIcon: const GlowIcon.water(size: 44),
+      ),
+      _Module(
+        label: 'Profile',
+        tabIndex: 4,
+        glowIcon: const GlowIcon.profile(size: 44),
+      ),
     ];
 
     return GridView.count(
@@ -1237,7 +1264,7 @@ class _ModulesGrid extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(m.icon, color: AppColors.primary, size: 28),
+                m.glowIcon,
                 const SizedBox(height: 8),
                 Text(
                   m.label,
@@ -1253,4 +1280,14 @@ class _ModulesGrid extends ConsumerWidget {
       }).toList(),
     );
   }
+}
+
+class _Module {
+  final String label;
+  final int tabIndex;
+  final GlowIcon glowIcon;
+  const _Module(
+      {required this.label,
+      required this.tabIndex,
+      required this.glowIcon});
 }

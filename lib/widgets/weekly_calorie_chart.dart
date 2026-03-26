@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../models/body_profile.dart';
-import '../models/progress_entry.dart';
-import '../providers/progress_provider.dart';
+import '../models/meal_entry.dart';
+import '../providers/meal_provider.dart';
 import '../providers/profile_provider.dart';
 
 // ── Public widget ─────────────────────────────────────────────────────────────
@@ -14,10 +14,10 @@ class WeeklyCalorieChart extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(progressProvider);
+    final meals = ref.watch(mealProvider);
     final profile = ref.watch(profileProvider);
     final target = _estimateTarget(profile);
-    final weekData = _buildWeekData(entries);
+    final weekData = _buildWeekData(meals);
     final hasAnyData = weekData.any((d) => d.hasData);
 
     return Card(
@@ -123,18 +123,19 @@ class WeeklyCalorieChart extends ConsumerWidget {
     return (tdee * mult).clamp(1200.0, 4000.0).round();
   }
 
-  /// Builds 7 [_DayData] entries — index 0 = 6 days ago, index 6 = today.
-  static List<_DayData> _buildWeekData(List<ProgressEntry> entries) {
+  /// Builds 7 [_DayData] entries from logged meals — index 0 = 6 days ago.
+  static List<_DayData> _buildWeekData(List<MealEntry> meals) {
     final today = DateTime.now();
     return List.generate(7, (i) {
       final date = today.subtract(Duration(days: 6 - i));
       final key =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final entry = entries.where((e) => e.date == key).firstOrNull;
+      final total =
+          meals.where((m) => m.date == key).fold(0, (s, m) => s + m.calories);
       return _DayData(
         date: date,
-        calories: entry?.caloriesBurned ?? 0,
-        hasData: entry != null && entry.caloriesBurned > 0,
+        calories: total,
+        hasData: total > 0,
         isToday: i == 6,
       );
     });
