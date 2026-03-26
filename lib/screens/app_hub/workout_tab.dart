@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/workout_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/step_indicator.dart';
+import '../../widgets/exercise_card.dart';
 
 class WorkoutTab extends ConsumerWidget {
   const WorkoutTab({super.key});
@@ -300,61 +301,18 @@ class _PlanStepState extends ConsumerState<_PlanStep> {
             child: ListView.builder(
               itemCount: exercises.length,
               itemBuilder: (context, i) {
-                final isDone = _done.contains(i);
-                return InkWell(
-                  onTap: () => setState(() {
-                    if (isDone) {
+                return ExerciseCard(
+                  key: ValueKey('exercise_$i'),
+                  rawText: exercises[i],
+                  isDone: _done.contains(i),
+                  onToggleDone: () => setState(() {
+                    if (_done.contains(i)) {
                       _done.remove(i);
                     } else {
                       _done.add(i);
                     }
                   }),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDone
-                                ? AppColors.primary
-                                : AppColors.card2,
-                            border: Border.all(
-                                color: isDone
-                                    ? AppColors.primary
-                                    : AppColors.border2),
-                          ),
-                          child: isDone
-                              ? const Icon(Icons.check,
-                                  size: 14, color: AppColors.bg)
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            exercises[i],
-                            style: TextStyle(
-                              color: isDone
-                                  ? AppColors.muted
-                                  : AppColors.text,
-                              fontSize: 13,
-                              decoration: isDone
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined,
-                              size: 16, color: AppColors.muted),
-                          onPressed: () => _editExercise(context, i, exercises[i]),
-                        ),
-                      ],
-                    ),
-                  ),
+                  onEdit: () => _editExercise(context, i, exercises[i]),
                 );
               },
             ),

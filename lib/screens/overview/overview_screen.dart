@@ -15,7 +15,8 @@ import '../../providers/tab_provider.dart';
 import '../../core/services/ai_coach_service.dart';
 import '../../widgets/streak_dots.dart';
 import '../../widgets/weekly_chart.dart';
-import '../../utils/weather_icon_mapper.dart';
+import '../../core/services/weather_service.dart';
+import '../../widgets/weather_card_theme.dart';
 import '../../utils/bmi_calc.dart';
 import '../../models/progress_entry.dart';
 
@@ -118,7 +119,6 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen>
             _HeroCard(
               profile: profile,
               weatherData: weather.current,
-              city: weather.city,
               motivation: _sessionMotivation,
             ),
           ),
@@ -172,151 +172,169 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen>
 
 class _HeroCard extends StatelessWidget {
   final dynamic profile;
-  final dynamic weatherData;
-  final String city;
+  final WeatherData? weatherData;
   final String motivation;
 
   const _HeroCard({
     required this.profile,
     required this.weatherData,
-    required this.city,
     required this.motivation,
   });
 
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
   @override
   Widget build(BuildContext context) {
-    final weatherInfo = weatherData != null
-        ? WeatherIconMapper.map(weatherData.weatherId as int)
-        : null;
-    final weatherIcon = weatherInfo?.emoji ?? '';
-    final weatherLabel = weatherInfo?.label ?? '';
-    final tempStr =
-        weatherData != null ? '${(weatherData.temp as num).round()}°C' : '--';
+    final wd = weatherData;
+    final isNight = wd?.icon.endsWith('n') ?? false;
+    final weatherTheme = WeatherThemeMapper.fromCode(
+      wd?.weatherId,
+      isNight: isNight,
+    );
+    final tempStr = wd != null ? '${wd.temp.round()}°C' : '--';
+    final description = wd != null ? _capitalize(wd.description) : '';
     final name = profile.name as String? ?? 'there';
     final photoPath = profile.photoPath as String?;
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E1040),
-            Color(0xFF2D1B69),
-            Color(0xFF120D2A),
-          ],
-          stops: [0.0, 0.55, 1.0],
+          colors: weatherTheme.gradientColors,
+          stops: weatherTheme.gradientStops,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Stack(
+        children: [
+          // Subtle animated weather particles (rain / snow / stars)
+          if (wd != null)
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: WeatherParticles(condition: weatherTheme.condition),
+              ),
+            ),
+          // Card content
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Hero(
-                  tag: 'profile-avatar',
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppColors.primaryDim,
-                    backgroundImage: photoPath != null
-                        ? FileImage(File(photoPath))
-                        : null,
-                    child: photoPath == null
-                        ? Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Hero(
+                      tag: 'profile-avatar',
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: AppColors.primaryDim,
+                        backgroundImage: photoPath != null
+                            ? FileImage(File(photoPath))
+                            : null,
+                        child: photoPath == null
+                            ? Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                style: const TextStyle(
+                                  color: AppColors.text,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hello, ${name.isNotEmpty ? name : 'there'}',
                             style: const TextStyle(
                               color: AppColors.text,
-                              fontSize: 22,
+                              fontSize: 18,
                               fontWeight: FontWeight.w700,
                             ),
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, ${name.isNotEmpty ? name : 'there'}',
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (weatherData != null)
-                        Row(
-                          children: [
-                            Text(weatherIcon,
-                                style: const TextStyle(fontSize: 16)),
-                            const SizedBox(width: 5),
-                            Text(
-                              tempStr,
-                              style: const TextStyle(
-                                  color: AppColors.text,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            if (weatherLabel.isNotEmpty) ...[
-                              const SizedBox(width: 5),
-                              Text(
-                                '· $weatherLabel',
-                                style: const TextStyle(
-                                    color: AppColors.muted, fontSize: 12),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              WeatherIconWidget(
+                                  theme: weatherTheme, size: 34),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          tempStr,
+                                          style: const TextStyle(
+                                            color: AppColors.text,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const _LocalBadge(),
+                                      ],
+                                    ),
+                                    if (description.isNotEmpty)
+                                      Text(
+                                        description,
+                                        style: const TextStyle(
+                                          color: AppColors.muted,
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
                               ),
                             ],
-                            const SizedBox(width: 8),
-                            _LocalBadge(),
-                          ],
-                        )
-                      else
-                        Row(
-                          children: [
-                            const Text('--',
-                                style: TextStyle(
-                                    color: AppColors.muted, fontSize: 13)),
-                            const SizedBox(width: 8),
-                            _LocalBadge(),
-                          ],
-                        ),
-                    ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryDim.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.25)),
+                  ),
+                  child: Text(
+                    motivation,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryDim.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25)),
-              ),
-              child: Text(
-                motivation,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _LocalBadge extends StatelessWidget {
+  const _LocalBadge();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -529,7 +547,262 @@ class _StreakCard extends StatelessWidget {
                   ? 'Logged today'
                   : "Log today's workout"),
             ),
+            const SizedBox(height: 16),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 10),
+            _StreakCalendar(history: streak.history as List<String>),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Streak Calendar ───────────────────────────────────────────────────────────
+
+class _StreakCalendar extends StatefulWidget {
+  final List<String> history;
+
+  const _StreakCalendar({required this.history});
+
+  @override
+  State<_StreakCalendar> createState() => _StreakCalendarState();
+}
+
+class _StreakCalendarState extends State<_StreakCalendar> {
+  late DateTime _displayMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _displayMonth = DateTime(now.year, now.month);
+  }
+
+  void _prevMonth() {
+    setState(() {
+      _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1);
+    });
+  }
+
+  void _nextMonth() {
+    final now = DateTime.now();
+    final isCurrentMonth = _displayMonth.year == now.year &&
+        _displayMonth.month == now.month;
+    if (!isCurrentMonth) {
+      setState(() {
+        _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isCurrentMonth = _displayMonth.year == now.year &&
+        _displayMonth.month == now.month;
+
+    final monthLabel = _monthName(_displayMonth.month);
+    final year = _displayMonth.year;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Month navigation header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              onPressed: _prevMonth,
+              icon: const Icon(Icons.chevron_left,
+                  color: AppColors.muted, size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+            Text(
+              '$monthLabel $year',
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+              ),
+            ),
+            IconButton(
+              onPressed: isCurrentMonth ? null : _nextMonth,
+              icon: Icon(Icons.chevron_right,
+                  color: isCurrentMonth ? AppColors.border : AppColors.muted,
+                  size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        _CalendarGrid(
+          month: _displayMonth,
+          today: now,
+          history: widget.history,
+        ),
+      ],
+    );
+  }
+
+  static String _monthName(int month) {
+    const names = [
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return names[month];
+  }
+}
+
+class _CalendarGrid extends StatelessWidget {
+  final DateTime month;
+  final DateTime today;
+  final List<String> history;
+
+  const _CalendarGrid({
+    required this.month,
+    required this.today,
+    required this.history,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    // Build day grid
+    final firstDay = DateTime(month.year, month.month, 1);
+    // Monday=1, so offset: Monday→0, Tuesday→1, ..., Sunday→6
+    final startOffset = (firstDay.weekday - 1) % 7;
+    final daysInMonth =
+        DateTime(month.year, month.month + 1, 0).day;
+    final totalCells = startOffset + daysInMonth;
+    final rows = (totalCells / 7).ceil();
+
+    return Column(
+      children: [
+        // Day-of-week header
+        Row(
+          children: dayLabels
+              .map((d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 4),
+        // Calendar rows
+        for (int row = 0; row < rows; row++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: List.generate(7, (col) {
+                final cellIndex = row * 7 + col;
+                final dayNumber = cellIndex - startOffset + 1;
+                if (dayNumber < 1 || dayNumber > daysInMonth) {
+                  return const Expanded(child: SizedBox());
+                }
+                final date = DateTime(month.year, month.month, dayNumber);
+                return Expanded(
+                  child: _DayCell(
+                    day: dayNumber,
+                    date: date,
+                    today: today,
+                    history: history,
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  final int day;
+  final DateTime date;
+  final DateTime today;
+  final List<String> history;
+
+  const _DayCell({
+    required this.day,
+    required this.date,
+    required this.today,
+    required this.history,
+  });
+
+  String get _key =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  bool get _isToday =>
+      date.year == today.year &&
+      date.month == today.month &&
+      date.day == today.day;
+
+  bool get _isFuture => date.isAfter(today);
+
+  bool get _logged => history.contains(_key);
+
+  @override
+  Widget build(BuildContext context) {
+    Color? fillColor;
+    Color textColor;
+    BoxBorder? border;
+    double opacity = 1.0;
+
+    if (_isFuture) {
+      fillColor = null;
+      textColor = AppColors.border;
+      opacity = 0.5;
+    } else if (_isToday && _logged) {
+      fillColor = AppColors.primary;
+      textColor = Colors.white;
+      border = Border.all(color: AppColors.primary, width: 2);
+    } else if (_isToday) {
+      fillColor = null;
+      textColor = AppColors.primary;
+      border = Border.all(color: AppColors.primary, width: 1.5);
+    } else if (_logged) {
+      fillColor = AppColors.primary.withValues(alpha: 0.75);
+      textColor = Colors.white;
+    } else {
+      fillColor = null;
+      textColor = AppColors.muted;
+    }
+
+    return Opacity(
+      opacity: opacity,
+      child: Center(
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: fillColor,
+            border: border,
+          ),
+          child: Center(
+            child: Text(
+              '$day',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 10,
+                fontWeight:
+                    _isToday ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ),
         ),
       ),
     );

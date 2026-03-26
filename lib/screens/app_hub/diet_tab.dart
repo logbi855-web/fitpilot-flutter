@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../utils/diet_logic.dart';
+import '../../widgets/weekly_calorie_chart.dart';
 
 class _ChatMessage {
   final String text;
@@ -166,6 +167,12 @@ class _DietTabState extends ConsumerState<DietTab> {
               ),
             ],
           ),
+        ),
+
+        // Weekly calorie report
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: WeeklyCalorieChart(),
         ),
       ],
     );
