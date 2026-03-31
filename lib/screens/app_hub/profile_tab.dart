@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,7 +15,9 @@ class ProfileTab extends ConsumerStatefulWidget {
   ConsumerState<ProfileTab> createState() => _ProfileTabState();
 }
 
-class _ProfileTabState extends ConsumerState<ProfileTab> {
+class _ProfileTabState extends ConsumerState<ProfileTab>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ringCtrl;
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _heightCtrl;
@@ -38,6 +41,10 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   @override
   void initState() {
     super.initState();
+    _ringCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
     final p = ref.read(profileProvider);
     _nameCtrl = TextEditingController(text: p.name);
     _heightCtrl = TextEditingController(text: p.height?.toString() ?? '');
@@ -56,6 +63,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
 
   @override
   void dispose() {
+    _ringCtrl.dispose();
     for (final c in [_nameCtrl, _heightCtrl, _ageCtrl, _weightCtrl,
         _targetCtrl, _supplementDetailsCtrl, _medicationCtrl, _medOtherCtrl]) {
       c.dispose();
@@ -119,51 +127,112 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar
+            // Avatar with animated gradient ring
             Center(
               child: GestureDetector(
                 onTap: _pickPhoto,
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 44,
-                      backgroundColor: AppColors.primaryDim,
-                      backgroundImage: profile.photoPath != null
-                          ? FileImage(File(profile.photoPath!))
-                          : null,
-                      child: profile.photoPath == null
-                          ? Text(
-                              profile.name.isNotEmpty
-                                  ? profile.name[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                  fontSize: 32,
-                                  color: AppColors.text,
-                                  fontWeight: FontWeight.w700),
-                            )
-                          : null,
+                child: AnimatedBuilder(
+                  animation: _ringCtrl,
+                  builder: (_, __) => SizedBox(
+                    width: 108,
+                    height: 108,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Rotating gradient ring
+                        Transform.rotate(
+                          angle: _ringCtrl.value * 2 * pi,
+                          child: Container(
+                            width: 108,
+                            height: 108,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: SweepGradient(
+                                colors: [
+                                  Color(0xFF7C3AED),
+                                  Color(0xFFA78BFA),
+                                  Color(0xFF4DD0E1),
+                                  Color(0xFF818CF8),
+                                  Color(0xFF7C3AED),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Inner bg circle (creates ring effect)
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.bg,
+                          ),
+                        ),
+                        // Avatar
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundColor: AppColors.primaryDim,
+                              backgroundImage: profile.photoPath != null
+                                  ? FileImage(File(profile.photoPath!))
+                                  : null,
+                              child: profile.photoPath == null
+                                  ? Text(
+                                      profile.name.isNotEmpty
+                                          ? profile.name[0].toUpperCase()
+                                          : 'U',
+                                      style: const TextStyle(
+                                          fontSize: 32,
+                                          color: AppColors.text,
+                                          fontWeight: FontWeight.w700),
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle),
+                                child: const Icon(Icons.camera_alt,
+                                    size: 14, color: AppColors.bg),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                            color: AppColors.primary, shape: BoxShape.circle),
-                        child: const Icon(Icons.camera_alt,
-                            size: 14, color: AppColors.bg),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            Center(
-              child: LinearProgressIndicator(
-                value: completion,
-                backgroundColor: AppColors.border,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+            LayoutBuilder(
+              builder: (ctx, constraints) => Stack(
+                children: [
+                  Container(
+                    height: 6,
+                    width: constraints.maxWidth,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  if (completion > 0)
+                    Container(
+                      height: 6,
+                      width: constraints.maxWidth * completion,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C3AED), Color(0xFFA78BFA), Color(0xFF4DD0E1)],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 4),

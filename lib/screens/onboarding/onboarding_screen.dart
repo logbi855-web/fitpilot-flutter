@@ -139,9 +139,40 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 // ── Welcome ────────────────────────────────────────────────────────────────────
 
-class _WelcomePage extends StatelessWidget {
+class _WelcomePage extends StatefulWidget {
   final VoidCallback onStart;
   const _WelcomePage({required this.onStart});
+
+  @override
+  State<_WelcomePage> createState() => _WelcomePageState();
+}
+
+class _WelcomePageState extends State<_WelcomePage>
+    with TickerProviderStateMixin {
+  late AnimationController _breathCtrl;
+  late AnimationController _shimmerCtrl;
+  late Animation<double> _breathAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _breathCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _breathAnim = CurvedAnimation(parent: _breathCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _breathCtrl.dispose();
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,16 +181,32 @@ class _WelcomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primaryDim, Color(0xFF4C1D95)],
+          // Breathing glow icon
+          AnimatedBuilder(
+            animation: _breathAnim,
+            builder: (_, child) => Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primaryDim, Color(0xFF4C1D95)],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryDim.withValues(
+                        alpha: 0.25 + 0.45 * _breathAnim.value),
+                    blurRadius: 16 + 24 * _breathAnim.value,
+                    spreadRadius: 2 + 4 * _breathAnim.value,
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(28),
+              child: Transform.scale(
+                scale: 1.0 + 0.06 * _breathAnim.value,
+                child: child,
+              ),
             ),
             child: const Icon(Icons.fitness_center, size: 52, color: Colors.white),
           ),
@@ -180,10 +227,53 @@ class _WelcomePage extends StatelessWidget {
             style: TextStyle(color: AppColors.muted, fontSize: 16, height: 1.5),
           ),
           const SizedBox(height: 56),
-          ElevatedButton(
-            onPressed: onStart,
-            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-            child: const Text('Get Started', style: TextStyle(fontSize: 16)),
+          // Shimmer gradient button
+          AnimatedBuilder(
+            animation: _shimmerCtrl,
+            builder: (_, __) {
+              final t = _shimmerCtrl.value;
+              return InkWell(
+                onTap: widget.onStart,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 52,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment(-2.0 + t * 4.0, 0),
+                      end: Alignment(-2.0 + t * 4.0 + 2.0, 0),
+                      colors: const [
+                        Color(0xFF5B21B6),
+                        Color(0xFF7C3AED),
+                        Color(0xFFA78BFA),
+                        Color(0xFFD8B4FE),
+                        Color(0xFFA78BFA),
+                        Color(0xFF7C3AED),
+                        Color(0xFF5B21B6),
+                      ],
+                      stops: [0.0, 0.15, 0.3, 0.5, 0.7, 0.85, 1.0],
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x557C3AED),
+                        blurRadius: 14,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Get Started',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],

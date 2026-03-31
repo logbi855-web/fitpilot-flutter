@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import 'exercise_illustration.dart';
 
 // ── Category ──────────────────────────────────────────────────────────────────
 
@@ -724,6 +725,11 @@ class _ExerciseCardState extends State<ExerciseCard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Exercise illustration
+                      ExerciseIllustration(
+                        rawName: name,
+                        muscles: info.muscles,
+                      ),
                       // Muscles row
                       _InfoRow(
                         icon: Icons.radio_button_checked,

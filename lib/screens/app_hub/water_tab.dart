@@ -106,10 +106,30 @@ class _WaterTabState extends ConsumerState<WaterTab> {
             );
           }),
           const SizedBox(height: 12),
-          LinearProgressIndicator(
-            value: pct,
-            backgroundColor: AppColors.border,
-            valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+          LayoutBuilder(
+            builder: (ctx, constraints) => Stack(
+              children: [
+                Container(
+                  height: 6,
+                  width: constraints.maxWidth,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                if (pct > 0)
+                  Container(
+                    height: 6,
+                    width: constraints.maxWidth * pct,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4DD0E1), Color(0xFF818CF8), Color(0xFFA78BFA)],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           Text('Goal: $goal ml',
@@ -135,11 +155,51 @@ class _WaterTabState extends ConsumerState<WaterTab> {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: [150, 250, 330, 500].map((ml) {
-              return OutlinedButton(
-                onPressed: () =>
-                    ref.read(waterProvider.notifier).addWater(ml),
-                child: Text('+$ml ml'),
+            children: [
+              (ml: 150, icon: Icons.local_cafe_outlined),
+              (ml: 250, icon: Icons.local_drink_outlined),
+              (ml: 330, icon: Icons.sports_bar_outlined),
+              (ml: 500, icon: Icons.water_drop_outlined),
+            ].map((item) {
+              return InkWell(
+                onTap: () => ref.read(waterProvider.notifier).addWater(item.ml),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF4DD0E1).withValues(alpha: 0.3),
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x224DD0E1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(item.icon, size: 16, color: const Color(0xFF4DD0E1)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '+${item.ml} ml',
+                        style: const TextStyle(
+                          color: Color(0xFF4DD0E1),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               );
             }).toList(),
           ),

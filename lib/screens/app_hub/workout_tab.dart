@@ -82,6 +82,17 @@ class _Option {
   const _Option(this.title, this.subtitle, this.value);
 }
 
+LinearGradient? _optionGradient(String value) => switch (value) {
+  'high'  => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEF5350), Color(0xFFFF6F00)]),
+  'low'   => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF66BB6A), Color(0xFF00838F)]),
+  'home'  => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF7C3AED), Color(0xFFA78BFA)]),
+  'gym'   => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF1565C0), Color(0xFF4DD0E1)]),
+  'upper' => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEF5350), Color(0xFFFF6F00)]),
+  'lower' => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF66BB6A), Color(0xFF00838F)]),
+  'full'  => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF7C3AED), Color(0xFF4DD0E1)]),
+  _ => null,
+};
+
 // ── Step 1–3: Choice screens ─────────────────────────────────────────────────
 
 class _ChoiceStep extends ConsumerWidget {
@@ -112,40 +123,61 @@ class _ChoiceStep extends ConsumerWidget {
                   fontSize: 20,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
-          ...options.map((opt) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: InkWell(
-                  onTap: () => onSelect(opt.value),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(opt.title,
-                                  style: const TextStyle(
-                                      color: AppColors.text,
-                                      fontWeight: FontWeight.w700)),
-                              Text(opt.subtitle,
-                                  style: const TextStyle(
-                                      color: AppColors.muted, fontSize: 12)),
-                            ],
-                          ),
+          ...options.map((opt) {
+                final grad = _optionGradient(opt.value);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    onTap: () => onSelect(opt.value),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Row(
+                          children: [
+                            // Gradient left accent bar
+                            if (grad != null)
+                              Container(
+                                width: 4,
+                                height: 72,
+                                decoration: BoxDecoration(gradient: grad),
+                              ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(opt.title,
+                                              style: const TextStyle(
+                                                  color: AppColors.text,
+                                                  fontWeight: FontWeight.w700)),
+                                          Text(opt.subtitle,
+                                              style: const TextStyle(
+                                                  color: AppColors.muted, fontSize: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right, color: AppColors.muted),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const Icon(Icons.chevron_right, color: AppColors.muted),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              )),
+                );
+              }),
           if (onBack != null)
             TextButton(
               onPressed: onBack,
@@ -291,10 +323,30 @@ class _PlanStepState extends ConsumerState<_PlanStep> {
             ),
           ],
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: pct,
-            backgroundColor: AppColors.border,
-            valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+          LayoutBuilder(
+            builder: (ctx, constraints) => Stack(
+              children: [
+                Container(
+                  height: 5,
+                  width: constraints.maxWidth,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                if (pct > 0)
+                  Container(
+                    height: 5,
+                    width: constraints.maxWidth * pct,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF7C3AED), Color(0xFFA78BFA), Color(0xFF4DD0E1)],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(

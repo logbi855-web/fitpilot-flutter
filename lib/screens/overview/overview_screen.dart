@@ -171,7 +171,7 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen>
 
 // ── Hero Card ─────────────────────────────────────────────────────────────────
 
-class _HeroCard extends StatelessWidget {
+class _HeroCard extends StatefulWidget {
   final dynamic profile;
   final WeatherData? weatherData;
   final String motivation;
@@ -182,12 +182,37 @@ class _HeroCard extends StatelessWidget {
     required this.motivation,
   });
 
+  @override
+  State<_HeroCard> createState() => _HeroCardState();
+}
+
+class _HeroCardState extends State<_HeroCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _gradCtrl;
+  late Animation<double> _gradAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat(reverse: true);
+    _gradAnim = CurvedAnimation(parent: _gradCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _gradCtrl.dispose();
+    super.dispose();
+  }
+
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   @override
   Widget build(BuildContext context) {
-    final wd = weatherData;
+    final wd = widget.weatherData;
     final isNight = wd?.icon.endsWith('n') ?? false;
     final weatherTheme = WeatherThemeMapper.fromCode(
       wd?.weatherId,
@@ -195,23 +220,43 @@ class _HeroCard extends StatelessWidget {
     );
     final tempStr = wd != null ? '${wd.temp.round()}°C' : '--';
     final description = wd != null ? _capitalize(wd.description) : '';
-    final name = profile.name as String? ?? 'there';
-    final photoPath = profile.photoPath as String?;
+    final name = widget.profile.name as String? ?? 'there';
+    final photoPath = widget.profile.photoPath as String?;
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: weatherTheme.gradientColors,
-          stops: weatherTheme.gradientStops,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _gradAnim,
+      builder: (context, child) {
+        final t = _gradAnim.value;
+        // Animate the gradient alignment for a slow-shifting effect
+        final gradBegin = Alignment.lerp(
+            Alignment.topLeft, const Alignment(-0.3, -1.0), t * 0.4)!;
+        final gradEnd = Alignment.lerp(
+            Alignment.bottomRight, const Alignment(1.0, 0.5), t * 0.4)!;
+
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: gradBegin,
+              end: gradEnd,
+              colors: weatherTheme.gradientColors,
+              stops: weatherTheme.gradientStops,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryDim.withValues(alpha: 0.15 + 0.1 * t),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
       child: Stack(
         children: [
-          // Subtle animated weather particles (rain / snow / stars)
+          // Animated weather particles (rain / snow / stars)
           if (wd != null)
             Positioned.fill(
               child: RepaintBoundary(
@@ -261,44 +306,56 @@ class _HeroCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              WeatherIconWidget(
-                                  theme: weatherTheme, size: 34),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                          // Frosted glass weather row
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  WeatherIconWidget(
+                                      theme: weatherTheme, size: 34),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          tempStr,
-                                          style: const TextStyle(
-                                            color: AppColors.text,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              tempStr,
+                                              style: const TextStyle(
+                                                color: AppColors.text,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const _LocalBadge(),
+                                          ],
                                         ),
-                                        const SizedBox(width: 8),
-                                        const _LocalBadge(),
+                                        if (description.isNotEmpty)
+                                          Text(
+                                            description,
+                                            style: const TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                       ],
                                     ),
-                                    if (description.isNotEmpty)
-                                      Text(
-                                        description,
-                                        style: const TextStyle(
-                                          color: AppColors.muted,
-                                          fontSize: 11,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -306,17 +363,30 @@ class _HeroCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryDim.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.25)),
+                // Motivation bar with glow pulse
+                AnimatedBuilder(
+                  animation: _gradAnim,
+                  builder: (_, child) => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDim.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(
+                              alpha: 0.08 + 0.14 * _gradAnim.value),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: child,
                   ),
                   child: Text(
-                    motivation,
+                    widget.motivation,
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontSize: 12,
@@ -436,33 +506,64 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.card,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: glowColors.last.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                GlowIcon(icon: icon, colors: glowColors, size: 22),
-                const SizedBox(width: 8),
-                Text(label,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 11)),
-              ],
+            // Gradient accent top line
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: glowColors),
+              ),
             ),
-            Text(
-              value,
-              style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        GlowIcon(icon: icon, colors: glowColors, size: 22),
+                        const SizedBox(width: 8),
+                        Text(label,
+                            style: const TextStyle(
+                                color: AppColors.muted, fontSize: 11)),
+                      ],
+                    ),
+                    ShaderMask(
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: glowColors,
+                      ).createShader(bounds),
+                      blendMode: BlendMode.srcIn,
+                      child: Text(
+                        value,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

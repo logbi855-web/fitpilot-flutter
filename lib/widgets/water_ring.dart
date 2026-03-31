@@ -2,6 +2,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
+const _ringGradientColors = [
+  Color(0xFF4DD0E1), // cyan
+  Color(0xFF818CF8), // blue-purple
+  Color(0xFFA78BFA), // purple
+  Color(0xFF4DD0E1), // back to cyan (seamless loop)
+];
+
 /// Animated circular ring progress chart for the water tracker.
 class WaterRing extends StatefulWidget {
   final int totalMl;
@@ -114,15 +121,23 @@ class _RingPainter extends CustomPainter {
         ..strokeWidth = 16,
     );
 
-    // Progress arc
+    // Progress arc (gradient cyan → purple)
     if (progress > 0) {
+      final arcRect = Rect.fromCircle(center: center, radius: radius);
+      final shader = const SweepGradient(
+        startAngle: -pi / 2,
+        endAngle: 3 * pi / 2,
+        colors: _ringGradientColors,
+        stops: [0.0, 0.33, 0.66, 1.0],
+      ).createShader(arcRect);
+
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        arcRect,
         -pi / 2,
         2 * pi * progress,
         false,
         Paint()
-          ..color = AppColors.primary
+          ..shader = shader
           ..style = PaintingStyle.stroke
           ..strokeWidth = 16
           ..strokeCap = StrokeCap.round,
